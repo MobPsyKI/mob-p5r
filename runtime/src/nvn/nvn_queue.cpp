@@ -20,6 +20,7 @@
 #ifdef __linux__
 #include <dirent.h>
 #include <unistd.h>
+#include <sched.h>
 #endif
 
 #include "diagnostics.h"
@@ -275,6 +276,14 @@ void QueueFinalize(CPU&) {}
 void QueueSubmitCommands(CPU& c) {  // (NVNqueue*, int count, const NVNcommandHandle*)
     static thread_local bool s_prio_set = [] {
         plat::set_thread_priority(-8);
+        #ifdef __linux__
+        // Pin this submission thread to the two fast Cortex-A75 cores (6 and 7) on MediaTek Helio G81 Ultra
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(6, &cpuset);
+        CPU_SET(7, &cpuset);
+        sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
+        #endif
         return true;
     }();
     (void)s_prio_set;
