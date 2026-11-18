@@ -37,21 +37,24 @@ jobs:
       - name: Build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq cmake ninja-build zip unzip curl
+          sudo apt-get install -y -qq cmake ninja-build zip unzip curl git
           mkdir -p private/third_party
           git clone --depth 1 --branch v1.4.357 \
             https://github.com/KhronosGroup/Vulkan-Headers private/third_party/Vulkan-Headers-1.4.357
           mkdir -p private/third_party/ryubing
-          curl -fsSL -o private/third_party/ryubing.tar.gz \
-            https://codeberg.org/Software_arch/Ryubing/archive/a82350bb77.tar.gz
+          
+          # Retry loop to bypass temporary Codeberg connection hiccups
+          for i in {1..5}; do
+            curl -fsSL -o private/third_party/ryubing.tar.gz \
+              https://codeberg.org/Software_arch/Ryubing/archive/a82350bb77.tar.gz && break || sleep 5
+          done
+          
           tar -xzf private/third_party/ryubing.tar.gz -C private/third_party/ryubing --strip-components=1
           rm private/third_party/ryubing.tar.gz
 
       - name: Build the shader translator
         run: docker run --rm -v "$PWD:/src" -w /src mcr.microsoft.com/dotnet/sdk:10.0 sh games/p5r/tools/build_harness_android.sh
 
-      # Optional repository secrets: P5R_KEYSTORE_BASE64 (base64 of a JKS), P5R_KEYSTORE_PASSWORD,
-      # P5R_KEY_ALIAS and P5R_KEY_PASSWORD. Without them the build uses a generated debug key.
       - name: Prepare signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.P5R_KEYSTORE_BASE64 }}
